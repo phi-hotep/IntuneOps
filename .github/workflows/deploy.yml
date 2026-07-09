@@ -91,6 +91,36 @@ jobs:
           app-name: ${{ env.AZURE_FUNCTIONAPP_NAME }}
           package: demo/function
 
+      - name: Sync triggers and warm up (force function indexing)
+        shell: pwsh
+        run: |
+          # On a Consumption plan a zip deploy does not reliably index the function right away, so
+          # both the endpoint and its keys can be missing for a while. Force the platform to re-read
+          # the function metadata (sync triggers), then ping the app so the host cold-starts and
+          # indexes the functions. This is what makes /api/scan (and the deploy-web key read) live.
+          $sub = "${{ secrets.AZURE_SUBSCRIPTION_ID }}"
+          $rg  = $env:AZURE_RESOURCE_GROUP
+          $app = $env:AZURE_FUNCTIONAPP_NAME
+          $syncUri = "https://management.azure.com/subscriptions/$sub/resourceGroups/$rg/providers/Microsoft.Web/sites/$app/syncfunctiontriggers?api-version=2016-08-01"
+          try {
+            az rest --method post --url $syncUri --only-show-errors | Out-Null
+            Write-Host "Requested trigger sync."
+          } catch {
+            Write-Host "Trigger sync request failed (non-fatal): $($_.Exception.Message)"
+          }
+          $base = "https://$app.azurewebsites.net"
+          for ($i = 1; $i -le 12; $i++) {
+            try {
+              $resp = Invoke-WebRequest -Uri $base -Method GET -TimeoutSec 30 -SkipHttpErrorCheck
+              Write-Host "Warm-up ping $i: HTTP $($resp.StatusCode)"
+              # Any response below 500 means the host is up and responding; it will index functions.
+              if ([int]$resp.StatusCode -lt 500) { break }
+            } catch {
+              Write-Host "Warm-up ping $i failed: $($_.Exception.Message)"
+            }
+            Start-Sleep -Seconds 5
+          }
+
   deploy-web:
     name: Deploy Cloudflare Pages
     runs-on: ubuntu-latest
@@ -109,22 +139,23 @@ jobs:
       - name: Generate config.js from the live function key
         shell: pwsh
         run: |
-          # Immediately after a fresh deploy, the Functions host can take up to a minute to sync
-          # HTTP triggers and register the function with the Keys API, so the very first read here
-          # can come back empty even though deploy-function already succeeded. Retry with backoff
-          # instead of failing on that first empty read.
+          # Read the HOST-level default function key (az functionapp keys list), not a per-function
+          # key. The host key works for any function with authLevel 'function' (the ?code= param
+          # accepts it) and, crucially, is retrievable from the app key store even before the
+          # individual function is indexed in ARM -- which is exactly the state that broke the
+          # per-function read on a fresh Consumption deploy. Retry briefly as a safety net.
           $key = $null
           $maxAttempts = 10
           for ($attempt = 1; $attempt -le $maxAttempts; $attempt++) {
-            $key = az functionapp function keys list `
+            $key = az functionapp keys list `
               -g $env:AZURE_RESOURCE_GROUP -n $env:AZURE_FUNCTIONAPP_NAME `
-              --function-name $env:FUNCTION_NAME --query default -o tsv 2>$null
+              --query "functionKeys.default" -o tsv 2>$null
             if (-not [string]::IsNullOrWhiteSpace($key)) { break }
-            Write-Host "Function key not ready yet (attempt $attempt/$maxAttempts); waiting 6s for trigger sync..."
+            Write-Host "Host key not ready yet (attempt $attempt/$maxAttempts); waiting 6s..."
             Start-Sleep -Seconds 6
           }
           if ([string]::IsNullOrWhiteSpace($key)) {
-            throw "Could not read the function key for $($env:FUNCTION_NAME) after $maxAttempts attempts. Is the Function deployed and its HTTP trigger synced?"
+            throw "Could not read the host function key for $($env:AZURE_FUNCTIONAPP_NAME) after $maxAttempts attempts."
           }
           Write-Host "::add-mask::$key"
           $url = "https://$($env:AZURE_FUNCTIONAPP_NAME).azurewebsites.net/api/scan"

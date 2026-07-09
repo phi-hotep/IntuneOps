@@ -112,7 +112,7 @@ jobs:
           for ($i = 1; $i -le 12; $i++) {
             try {
               $resp = Invoke-WebRequest -Uri $base -Method GET -TimeoutSec 30 -SkipHttpErrorCheck
-              Write-Host "Warm-up ping $i: HTTP $($resp.StatusCode)"
+              Write-Host "Warm-up ping ${i}: HTTP $($resp.StatusCode)"
               # Any response below 500 means the host is up and responding; it will index functions.
               if ([int]$resp.StatusCode -lt 500) { break }
             } catch {

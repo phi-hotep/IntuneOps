@@ -163,9 +163,26 @@ jobs:
             Set-Content -LiteralPath demo/web/config.js -Encoding utf8
           Write-Host "Wrote demo/web/config.js targeting $url"
 
+      - name: Ensure the Cloudflare Pages project exists
+        # wrangler pages deploy does NOT create the project in CI; it errors with "Project not found"
+        # on the first run. Create it here idempotently (skip if it already exists) so the very first
+        # pipeline run works end to end without a manual dashboard step.
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          if npx --yes wrangler@3 pages project list 2>/dev/null | grep -qw "${CF_PAGES_PROJECT}"; then
+            echo "Pages project '${CF_PAGES_PROJECT}' already exists."
+          else
+            echo "Creating Pages project '${CF_PAGES_PROJECT}' (production branch: ${DEPLOY_BRANCH})..."
+            npx --yes wrangler@3 pages project create "${CF_PAGES_PROJECT}" --production-branch="${DEPLOY_BRANCH}"
+          fi
+
       - name: Deploy to Cloudflare Pages
         uses: cloudflare/wrangler-action@v3
         with:
           apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
-          command: pages deploy demo/web --project-name=${{ env.CF_PAGES_PROJECT }} --branch=${{ env.DEPLOY_BRANCH }}
+          command: pages deploy demo/web --project-name=${{ env.CF_PAGES_PROJECT }} --branch=${{ env.DEPLOY_BRANCH }} --commit-dirty=true

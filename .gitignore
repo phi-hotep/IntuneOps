@@ -1,0 +1,42 @@
+# Purpose: keep secrets, local overrides, and run artifacts out of version control.
+
+# Secrets and identifiers (never commit)
+.env
+*.env.local
+*.secret.*
+secrets/
+
+# Certificates and keys
+*.pfx
+*.pem
+*.cer
+*.crt
+*.key
+*.p12
+
+# Local config overrides
+*.local.ps1
+*.local.psd1
+settings.local.psd1
+
+# Run artifacts and logs
+logs/*
+!logs/.gitkeep
+out/
+reports/
+*.log
+
+# PowerShell / editor cruft
+.vscode/
+*.tmp
+Thumbs.db
+.DS_Store
+
+# Demo layer: local-only config (holds the function URL/key) and build artifacts
+demo/web/config.js
+demo/function/local.settings.json
+demo/function/IntuneOps/
+demo/function/.azurefunctions/
+
+# Claude
+CLAUDE.md

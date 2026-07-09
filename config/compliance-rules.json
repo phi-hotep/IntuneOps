@@ -1,0 +1,37 @@
+{
+  "$comment": "Purpose: data-driven compliance thresholds and per-rule remediation actions. No code changes needed to tune policy. Validated by Get-IntuneOpsConfig. Per-rule 'action' selects the remediation path: 'Automated' (Intune proactive remediation) or 'Nudge' (flag + notify).",
+  "schemaVersion": "0.2.0",
+  "checks": {
+    "diskEncryption": {
+      "enabled": true,
+      "action": "Automated",
+      "remediation": {
+        "displayName": "IntuneOps - Enable BitLocker (OS volume)",
+        "description": "Detects an unencrypted OS volume and enables BitLocker. Managed by IntuneOps.",
+        "publisher": "IntuneOps",
+        "detectionScriptPath": "config/remediation-scripts/Detect-BitLocker.ps1",
+        "remediationScriptPath": "config/remediation-scripts/Remediate-BitLocker.ps1",
+        "runAsAccount": "system",
+        "runAs32Bit": false,
+        "enforceSignatureCheck": false,
+        "assignmentTarget": "AllDevices",
+        "dailyScheduleTime": "01:00:00"
+      }
+    },
+    "osVersion": {
+      "enabled": true,
+      "action": "Nudge",
+      "minimumByPlatform": {
+        "windows": "10.0.19045",
+        "macOS": "14.0",
+        "iOS": "17.0",
+        "android": "13"
+      }
+    },
+    "antivirus": {
+      "enabled": true,
+      "action": "Nudge",
+      "treatUnknownAs": "Unknown"
+    }
+  }
+}

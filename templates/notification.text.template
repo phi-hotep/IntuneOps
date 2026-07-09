@@ -1,0 +1,17 @@
+Hello,
+
+Our security compliance automation checked your device and found one or more issues that need your attention.
+
+Device: {{DeviceName}}
+Platform: {{Platform}}
+Checked: {{EvaluatedAt}}
+
+Issues found:
+{{FailingChecks}}
+
+What you need to do:
+{{RemediationInstruction}}
+
+If you believe this is a mistake or need help, please contact your IT support team.
+
+This is an automated message from IntuneOps device compliance.

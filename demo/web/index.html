@@ -1,0 +1,377 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>IntuneOps // compliance scan demo</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg: #0d1117;
+    --panel: #111a23;
+    --panel-edge: #1d2a38;
+    --ink: #e6edf3;
+    --ink-muted: #8b98a5;
+    --teal: #00d4b8;
+    --teal-bright: #3df0d6;
+    --status-good: #00d4b8;
+    --status-bad: #ff5c5c;
+    --status-unknown: #ffb454;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    min-height: 100vh;
+    background:
+      repeating-linear-gradient(0deg,  rgba(61, 240, 214, 0.028) 0 1px, transparent 1px 32px),
+      repeating-linear-gradient(90deg, rgba(61, 240, 214, 0.028) 0 1px, transparent 1px 32px),
+      var(--bg);
+    color: var(--ink);
+    font-family: 'JetBrains Mono', ui-monospace, 'Cascadia Code', Consolas, monospace;
+    font-size: 14px;
+    line-height: 1.55;
+  }
+  main { max-width: 980px; margin: 0 auto; padding: 40px 20px 80px; }
+
+  .overline { color: var(--teal); font-size: 11px; letter-spacing: 0.28em; text-transform: uppercase; }
+  h1 { margin: 6px 0 2px; font-size: 30px; font-weight: 700; letter-spacing: 0.02em; }
+  h1 .accent { color: var(--teal-bright); }
+  .tagline { color: var(--ink-muted); margin: 0 0 8px; }
+  .disclaimer {
+    display: inline-block; margin-top: 6px; padding: 4px 10px;
+    border: 1px solid var(--panel-edge); border-left: 3px solid var(--status-unknown);
+    color: var(--ink-muted); font-size: 12px; background: var(--panel);
+  }
+
+  .runbar { margin: 28px 0 8px; display: flex; align-items: center; gap: 16px; flex-wrap: wrap; }
+  button#run {
+    font: inherit; font-weight: 700; letter-spacing: 0.06em;
+    color: #06231f; background: var(--teal);
+    border: none; padding: 12px 26px; cursor: pointer;
+    box-shadow: 0 0 0 1px rgba(61, 240, 214, 0.35), 0 0 24px rgba(0, 212, 184, 0.15);
+    transition: background 120ms ease, transform 60ms ease;
+  }
+  button#run:hover:not(:disabled) { background: var(--teal-bright); }
+  button#run:active:not(:disabled) { transform: translateY(1px); }
+  button#run:disabled { background: #24313f; color: var(--ink-muted); cursor: wait; box-shadow: none; }
+  #status { color: var(--ink-muted); font-size: 13px; display: flex; align-items: center; gap: 10px; }
+  .spinner {
+    width: 14px; height: 14px; border-radius: 50%;
+    border: 2px solid rgba(61, 240, 214, 0.25); border-top-color: var(--teal-bright);
+    animation: spin 0.8s linear infinite; flex: none;
+  }
+  @keyframes spin { to { transform: rotate(360deg); } }
+
+  section.panel {
+    background: var(--panel); border: 1px solid var(--panel-edge);
+    margin-top: 22px; padding: 18px 20px 20px;
+  }
+  section.panel > h2 {
+    margin: 0 0 4px; font-size: 13px; font-weight: 700;
+    letter-spacing: 0.18em; text-transform: uppercase; color: var(--teal);
+    display: flex; align-items: center; gap: 10px; flex-wrap: wrap;
+  }
+  .panel-note { color: var(--ink-muted); font-size: 12px; margin: 0 0 12px; }
+  .chip {
+    font-size: 10px; letter-spacing: 0.12em; padding: 2px 8px;
+    border: 1px solid var(--status-unknown); color: var(--status-unknown);
+  }
+
+  table { width: 100%; border-collapse: collapse; font-size: 13px; }
+  th, td { text-align: left; padding: 7px 10px; border-bottom: 1px solid var(--panel-edge); }
+  th { color: var(--ink-muted); font-weight: 500; font-size: 11px; letter-spacing: 0.1em; text-transform: uppercase; }
+  tr:last-child td { border-bottom: none; }
+  .table-scroll { overflow-x: auto; }
+
+  .badge {
+    display: inline-block; padding: 1px 8px; font-size: 11px; font-weight: 700;
+    letter-spacing: 0.04em; border: 1px solid; white-space: nowrap;
+  }
+  .badge.good    { color: var(--status-good);    border-color: rgba(0, 212, 184, 0.5);  background: rgba(0, 212, 184, 0.08); }
+  .badge.bad     { color: var(--status-bad);     border-color: rgba(255, 92, 92, 0.5);  background: rgba(255, 92, 92, 0.08); }
+  .badge.unknown { color: var(--status-unknown); border-color: rgba(255, 180, 84, 0.5); background: rgba(255, 180, 84, 0.08); }
+  .badge.neutral { color: var(--ink-muted);      border-color: var(--panel-edge);       background: transparent; }
+
+  .tiles { display: grid; grid-template-columns: repeat(auto-fit, minmax(130px, 1fr)); gap: 12px; }
+  .tile { border: 1px solid var(--panel-edge); padding: 12px 14px; background: rgba(13, 17, 23, 0.6); }
+  .tile .num { font-size: 26px; font-weight: 700; line-height: 1.1; }
+  .tile .lbl { color: var(--ink-muted); font-size: 11px; letter-spacing: 0.1em; text-transform: uppercase; margin-top: 4px; }
+  .tile.good .num { color: var(--status-good); }
+  .tile.bad .num { color: var(--status-bad); }
+  .tile.unknown .num { color: var(--status-unknown); }
+
+  #error {
+    border: 1px solid rgba(255, 92, 92, 0.5); border-left: 3px solid var(--status-bad);
+    background: rgba(255, 92, 92, 0.06); color: var(--ink);
+    margin-top: 22px; padding: 14px 16px; font-size: 13px; white-space: pre-wrap;
+  }
+  #meta { color: var(--ink-muted); font-size: 12px; margin-top: 14px; }
+  .hidden { display: none; }
+  footer { margin-top: 40px; color: var(--ink-muted); font-size: 12px; }
+  footer a { color: var(--teal); }
+</style>
+</head>
+<body>
+<main>
+  <header>
+    <div class="overline">Salle des machines // portfolio demo</div>
+    <h1>IntuneOps<span class="accent">_</span>compliance scan</h1>
+    <p class="tagline">PowerShell 7 pipeline over Microsoft Graph: connect, query, evaluate, remediate, notify, report.</p>
+    <span class="disclaimer">Live pipeline execution on every click. Mock device fixtures. Permanently dry-run: nothing is ever mutated.</span>
+  </header>
+
+  <div class="runbar">
+    <button id="run" type="button">RUN COMPLIANCE SCAN</button>
+    <div id="status"><span>Ready.</span></div>
+  </div>
+
+  <div id="error" class="hidden"></div>
+
+  <div id="results" class="hidden">
+    <section class="panel">
+      <h2>Evaluate</h2>
+      <p class="panel-note">Per-device compliance verdicts. Unknown means the signal could not be read; it is never collapsed into pass or fail.</p>
+      <div class="table-scroll">
+        <table id="eval-table">
+          <thead>
+            <tr>
+              <th>Device</th><th>Platform</th><th>OS version</th>
+              <th>Disk encryption</th><th>OS minimum</th><th>Antivirus</th><th>Overall</th>
+            </tr>
+          </thead>
+          <tbody></tbody>
+        </table>
+      </div>
+    </section>
+
+    <section class="panel">
+      <h2>Remediation plan <span class="chip">DRY-RUN &middot; NOTHING APPLIED</span></h2>
+      <p class="panel-note">What the pipeline WOULD do with -Execute: create and assign an Intune proactive remediation, or nudge the device owner.</p>
+      <div class="table-scroll">
+        <table id="rem-table">
+          <thead>
+            <tr><th>Kind</th><th>Check</th><th>Target</th><th>Planned result</th><th>Devices</th></tr>
+          </thead>
+          <tbody></tbody>
+        </table>
+      </div>
+    </section>
+
+    <section class="panel">
+      <h2>Notifications <span class="chip">RENDERED &middot; NOT SENT</span></h2>
+      <p class="panel-note">Templated compliance emails rendered for each non-compliant device owner.</p>
+      <div class="table-scroll">
+        <table id="note-table">
+          <thead>
+            <tr><th>Device</th><th>To</th><th>Subject</th><th>Result</th></tr>
+          </thead>
+          <tbody></tbody>
+        </table>
+      </div>
+    </section>
+
+    <section class="panel">
+      <h2>Run summary</h2>
+      <div class="tiles" id="tiles"></div>
+      <div id="meta"></div>
+    </section>
+  </div>
+
+  <footer>
+    Companion demo to the IntuneOps repository. The pipeline runs in an Azure Function against
+    Graph-schema mock fixtures; see the repository README for the production path (Azure
+    Automation, managed identity) and LIMITATIONS.md for what is and is not mocked.
+  </footer>
+</main>
+
+<script src="config.js"></script>
+<script>
+(function () {
+  'use strict';
+
+  var btn = document.getElementById('run');
+  var statusEl = document.getElementById('status');
+  var errorEl = document.getElementById('error');
+  var resultsEl = document.getElementById('results');
+
+  var STATUS_CLASS = { Compliant: 'good', NonCompliant: 'bad', Unknown: 'unknown' };
+
+  function setStatus(text, busy) {
+    statusEl.textContent = '';
+    if (busy) {
+      var spin = document.createElement('span');
+      spin.className = 'spinner';
+      statusEl.appendChild(spin);
+    }
+    var span = document.createElement('span');
+    span.textContent = text;
+    statusEl.appendChild(span);
+  }
+
+  function showError(message) {
+    errorEl.textContent = message;
+    errorEl.classList.remove('hidden');
+  }
+
+  function badge(status) {
+    var el = document.createElement('span');
+    el.className = 'badge ' + (STATUS_CLASS[status] || 'neutral');
+    el.textContent = status || 'n/a';
+    return el;
+  }
+
+  function cell(content) {
+    var td = document.createElement('td');
+    if (content instanceof Node) { td.appendChild(content); }
+    else { td.textContent = (content === null || content === undefined) ? '' : String(content); }
+    return td;
+  }
+
+  function row(cells) {
+    var tr = document.createElement('tr');
+    cells.forEach(function (c) { tr.appendChild(cell(c)); });
+    return tr;
+  }
+
+  function asArray(value) {
+    if (Array.isArray(value)) { return value; }
+    return (value === null || value === undefined) ? [] : [value];
+  }
+
+  function checkBadge(result, name) {
+    var check = asArray(result.Checks).find(function (c) { return c.Check === name; });
+    if (!check) { return badge(null); }
+    var el = badge(check.Status);
+    el.title = check.Reason || '';
+    return el;
+  }
+
+  function tile(num, label, cls) {
+    var el = document.createElement('div');
+    el.className = 'tile' + (cls ? ' ' + cls : '');
+    var n = document.createElement('div');
+    n.className = 'num';
+    n.textContent = (num === null || num === undefined) ? '0' : String(num);
+    var l = document.createElement('div');
+    l.className = 'lbl';
+    l.textContent = label;
+    el.appendChild(n);
+    el.appendChild(l);
+    return el;
+  }
+
+  function render(data) {
+    var evalBody = document.querySelector('#eval-table tbody');
+    var remBody = document.querySelector('#rem-table tbody');
+    var noteBody = document.querySelector('#note-table tbody');
+    var tiles = document.getElementById('tiles');
+    evalBody.textContent = ''; remBody.textContent = ''; noteBody.textContent = ''; tiles.textContent = '';
+
+    asArray(data.results).forEach(function (r) {
+      evalBody.appendChild(row([
+        r.DeviceName, r.Platform, r.OsVersion,
+        checkBadge(r, 'DiskEncryption'), checkBadge(r, 'OSVersion'), checkBadge(r, 'Antivirus'),
+        badge(r.OverallStatus)
+      ]));
+    });
+
+    var remediation = asArray(data.remediation);
+    if (remediation.length === 0) {
+      remBody.appendChild(row(['(no remediation required)', '', '', '', '']));
+    }
+    remediation.forEach(function (a) {
+      remBody.appendChild(row([a.Kind, a.Check, a.Target, a.Result, a.AffectedDeviceCount]));
+    });
+
+    var notifications = asArray(data.notifications);
+    if (notifications.length === 0) {
+      noteBody.appendChild(row(['(no notifications required)', '', '', '']));
+    }
+    notifications.forEach(function (n) {
+      noteBody.appendChild(row([n.Device, n.To, n.Subject, n.Result]));
+    });
+
+    var s = data.summary || {};
+    var counts = s.Counts || {};
+    var rem = s.Remediation || {};
+    var note = s.Notifications || {};
+    tiles.appendChild(tile(counts.Total, 'devices'));
+    tiles.appendChild(tile(counts.Compliant, 'compliant', 'good'));
+    tiles.appendChild(tile(counts.NonCompliant, 'non-compliant', 'bad'));
+    tiles.appendChild(tile(counts.Unknown, 'unknown', 'unknown'));
+    tiles.appendChild(tile(rem.Planned, 'remediations planned'));
+    tiles.appendChild(tile(rem.Applied, 'applied'));
+    tiles.appendChild(tile(note.Rendered, 'emails rendered'));
+    tiles.appendChild(tile(note.Sent, 'sent'));
+
+    var meta = data.meta || {};
+    document.getElementById('meta').textContent =
+      'mode=' + (meta.mode || 'unknown') +
+      ' | executed=' + String(meta.executed === true) +
+      ' | pipeline ' + (meta.durationMs !== undefined ? meta.durationMs + ' ms' : 'n/a') +
+      ' | ' + (meta.generatedAtUtc || '') +
+      ' | recommended exit code ' + (s.RecommendedExitCode !== undefined ? s.RecommendedExitCode : 'n/a');
+
+    resultsEl.classList.remove('hidden');
+  }
+
+  function buildUrl(cfg) {
+    var url = cfg.functionUrl;
+    if (cfg.functionKey) {
+      url += (url.indexOf('?') === -1 ? '?' : '&') + 'code=' + encodeURIComponent(cfg.functionKey);
+    }
+    return url;
+  }
+
+  async function runScan() {
+    var cfg = window.INTUNEOPS_DEMO_CONFIG;
+    errorEl.classList.add('hidden');
+
+    if (!cfg || !cfg.functionUrl) {
+      showError('Demo is not configured: copy config.sample.js to config.js and set functionUrl (and functionKey for a deployed Function).');
+      return;
+    }
+
+    btn.disabled = true;
+    setStatus('Running the pipeline... a cold Function can take up to ~30 s; warm runs are quick.', true);
+
+    var controller = new AbortController();
+    var timer = setTimeout(function () { controller.abort(); }, 90000);
+
+    try {
+      var res = await fetch(buildUrl(cfg), { method: 'GET', signal: controller.signal });
+      if (!res.ok) {
+        var detail = '';
+        try { detail = (await res.json()).error || ''; } catch (ignored) { /* non-JSON body */ }
+        throw new Error('The Function returned HTTP ' + res.status + (detail ? ': ' + detail : '') +
+          (res.status === 401 || res.status === 403 ? ' (check the function key in config.js)' : ''));
+      }
+      var data = await res.json();
+      render(data);
+      setStatus('Scan complete. Run it again any time; the result is deterministic.', false);
+    }
+    catch (err) {
+      if (err.name === 'AbortError') {
+        showError('The request timed out after 90 s. The Function may be down or still cold; try once more.');
+      }
+      else if (err instanceof TypeError) {
+        showError('Could not reach the Function (network error). Most common cause: CORS. Check the browser console; the Function must allow this page\'s origin (see demo/README.md), and the functionUrl in config.js must be correct.');
+      }
+      else {
+        showError(err.message || 'The scan failed for an unknown reason.');
+      }
+      setStatus('Ready.', false);
+    }
+    finally {
+      clearTimeout(timer);
+      btn.disabled = false;
+    }
+  }
+
+  btn.addEventListener('click', runScan);
+})();
+</script>
+</body>
+</html>

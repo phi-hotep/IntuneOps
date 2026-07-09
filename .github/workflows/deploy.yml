@@ -1,0 +1,129 @@
+# Purpose: CI/CD for the IntuneOps demo layer. On push it tests the pipeline, deploys the Azure
+# Function (mock dry-run), then generates the web config from live values and deploys the page to
+# Cloudflare Pages. Pull requests run tests only. Azure auth is OIDC (no stored password); the only
+# Cloudflare inputs are the API token and account id, both GitHub secrets.
+#
+# Branch: this file, the OIDC federated-credential subject created by demo/deploy/Bootstrap-Demo.ps1,
+# and the repository's actual default branch must all name the SAME branch. Change BRANCH in one place
+# (the push trigger below) and pass the same value to Bootstrap-Demo.ps1 -Branch.
+
+name: Deploy IntuneOps demo
+
+on:
+  push:
+    branches: [master]
+  pull_request:
+    branches: [master]
+  workflow_dispatch:
+
+# Single source of permissions for the whole workflow. Both deploy-function and deploy-web call
+# azure/login with OIDC, so both need id-token: write; do not re-declare a narrower permissions block
+# on either job.
+permissions:
+  id-token: write
+  contents: read
+
+env:
+  AZURE_RESOURCE_GROUP: rg-intuneops-demo
+  AZURE_FUNCTIONAPP_NAME: intuneops-demo
+  FUNCTION_NAME: RunComplianceScan
+  CF_PAGES_PROJECT: intuneops-demo
+  # The branch the Cloudflare Pages production deployment is published under. Keep in sync with the
+  # push trigger above.
+  DEPLOY_BRANCH: master
+
+jobs:
+  test:
+    name: Test and lint
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Run Pester (mock and pure-logic tests; no Graph SDK needed)
+        shell: pwsh
+        run: |
+          Set-PSRepository -Name PSGallery -InstallationPolicy Trusted
+          Install-Module Pester -MinimumVersion 5.0.0 -Force -Scope CurrentUser
+          $config = New-PesterConfiguration
+          $config.Run.Path = './tests'
+          $config.Run.Throw = $true
+          $config.Output.Verbosity = 'Detailed'
+          Invoke-Pester -Configuration $config
+
+      - name: Lint (PSScriptAnalyzer, fail on Errors only)
+        shell: pwsh
+        run: |
+          Install-Module PSScriptAnalyzer -Force -Scope CurrentUser
+          # Documented exception: the AppSecret auth path (Resolve-IntuneOpsAuth) must turn a client
+          # secret read from an environment variable into a PSCredential, which requires
+          # ConvertTo-SecureString -AsPlainText. That use is intentional and guarded, so the rule is
+          # excluded here rather than suppressed silently.
+          $exclude = @('PSAvoidUsingConvertToSecureStringWithPlainText')
+          $findings = Invoke-ScriptAnalyzer -Path . -Recurse -Severity Error -ExcludeRule $exclude
+          if ($findings) {
+            $findings | Format-Table -AutoSize | Out-String | Write-Host
+            throw "PSScriptAnalyzer reported $($findings.Count) error-level finding(s)."
+          }
+          Write-Host "No error-level findings (excluded rules: $($exclude -join ', '))."
+
+  deploy-function:
+    name: Deploy Azure Function
+    runs-on: ubuntu-latest
+    needs: test
+    if: github.event_name != 'pull_request'
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Azure login (OIDC)
+        uses: azure/login@v2
+        with:
+          client-id: ${{ secrets.AZURE_CLIENT_ID }}
+          tenant-id: ${{ secrets.AZURE_TENANT_ID }}
+          subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+
+      - name: Stage the self-contained Function payload
+        shell: pwsh
+        run: pwsh demo/function/Stage-FunctionPayload.ps1
+
+      - name: Deploy to the Function App
+        uses: Azure/functions-action@v1
+        with:
+          app-name: ${{ env.AZURE_FUNCTIONAPP_NAME }}
+          package: demo/function
+
+  deploy-web:
+    name: Deploy Cloudflare Pages
+    runs-on: ubuntu-latest
+    needs: deploy-function
+    if: github.event_name != 'pull_request'
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Azure login (OIDC)
+        uses: azure/login@v2
+        with:
+          client-id: ${{ secrets.AZURE_CLIENT_ID }}
+          tenant-id: ${{ secrets.AZURE_TENANT_ID }}
+          subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+
+      - name: Generate config.js from the live function key
+        shell: pwsh
+        run: |
+          $key = az functionapp function keys list `
+            -g $env:AZURE_RESOURCE_GROUP -n $env:AZURE_FUNCTIONAPP_NAME `
+            --function-name $env:FUNCTION_NAME --query default -o tsv
+          if ([string]::IsNullOrWhiteSpace($key)) {
+            throw "Could not read the function key for $($env:FUNCTION_NAME). Is the Function deployed?"
+          }
+          Write-Host "::add-mask::$key"
+          $url = "https://$($env:AZURE_FUNCTIONAPP_NAME).azurewebsites.net/api/scan"
+          "window.INTUNEOPS_DEMO_CONFIG = { functionUrl: '$url', functionKey: '$key' };" |
+            Set-Content -LiteralPath demo/web/config.js -Encoding utf8
+          Write-Host "Wrote demo/web/config.js targeting $url"
+
+      - name: Deploy to Cloudflare Pages
+        uses: cloudflare/wrangler-action@v3
+        with:
+          apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          command: pages deploy demo/web --project-name=${{ env.CF_PAGES_PROJECT }} --branch=${{ env.DEPLOY_BRANCH }}

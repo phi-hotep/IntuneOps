@@ -1,0 +1,153 @@
+[
+  {
+    "DeviceId": "8f7a2b1c-0d3e-4f5a-9b8c-1d2e3f4a5b6c",
+    "DeviceName": "MOCK-WIN-OK",
+    "OwnerUpn": "alice.walker@contoso.onmicrosoft.com",
+    "Platform": "Windows",
+    "OsVersion": "10.0.22631.3958",
+    "Checks": [
+      {
+        "Check": "DiskEncryption",
+        "Status": "Compliant",
+        "Reason": "Disk encryption is enabled.",
+        "SignalSource": "Graph",
+        "Expected": true,
+        "Actual": true
+      },
+      {
+        "Check": "OSVersion",
+        "Status": "Compliant",
+        "Reason": "OS version 10.0.22631.3958 meets minimum 10.0.19045.",
+        "SignalSource": "Graph",
+        "Expected": "10.0.19045",
+        "Actual": "10.0.22631.3958"
+      },
+      {
+        "Check": "Antivirus",
+        "Status": "Compliant",
+        "Reason": "Antivirus healthy (realTimeProtection=True; antivirusEnabled=True; signatureUpdateOverdue=False).",
+        "SignalSource": "Graph",
+        "Expected": true,
+        "Actual": true
+      }
+    ],
+    "OverallStatus": "Compliant",
+    "Reasons": [],
+    "EvaluatedAt": "2026-07-09T11:26:42-04:00"
+  },
+  {
+    "DeviceId": "2c9e4d7f-6a1b-4c8d-b0e2-5f6a7b8c9d0e",
+    "DeviceName": "MOCK-WIN-NOENC",
+    "OwnerUpn": "bruno.tremblay@contoso.onmicrosoft.com",
+    "Platform": "Windows",
+    "OsVersion": "10.0.22631.3958",
+    "Checks": [
+      {
+        "Check": "DiskEncryption",
+        "Status": "NonCompliant",
+        "Reason": "Disk encryption is not enabled.",
+        "SignalSource": "Graph",
+        "Expected": true,
+        "Actual": false
+      },
+      {
+        "Check": "OSVersion",
+        "Status": "Compliant",
+        "Reason": "OS version 10.0.22631.3958 meets minimum 10.0.19045.",
+        "SignalSource": "Graph",
+        "Expected": "10.0.19045",
+        "Actual": "10.0.22631.3958"
+      },
+      {
+        "Check": "Antivirus",
+        "Status": "Compliant",
+        "Reason": "Antivirus healthy (realTimeProtection=True; antivirusEnabled=True; signatureUpdateOverdue=False).",
+        "SignalSource": "Graph",
+        "Expected": true,
+        "Actual": true
+      }
+    ],
+    "OverallStatus": "NonCompliant",
+    "Reasons": [
+      "[DiskEncryption] Disk encryption is not enabled."
+    ],
+    "EvaluatedAt": "2026-07-09T11:26:42-04:00"
+  },
+  {
+    "DeviceId": "b5d8e1f4-3a6c-4b9d-8e0f-2a3b4c5d6e7f",
+    "DeviceName": "MOCK-MAC-OLDOS",
+    "OwnerUpn": "chloe.martin@contoso.onmicrosoft.com",
+    "Platform": "macOS",
+    "OsVersion": "13.5",
+    "Checks": [
+      {
+        "Check": "DiskEncryption",
+        "Status": "Compliant",
+        "Reason": "Disk encryption is enabled.",
+        "SignalSource": "Graph",
+        "Expected": true,
+        "Actual": true
+      },
+      {
+        "Check": "OSVersion",
+        "Status": "NonCompliant",
+        "Reason": "OS version 13.5 is below minimum 14.0.",
+        "SignalSource": "Graph",
+        "Expected": "14.0",
+        "Actual": "13.5"
+      },
+      {
+        "Check": "Antivirus",
+        "Status": "Unknown",
+        "Reason": "Antivirus health not reported by Graph (signal unavailable in this tenant); applied treatUnknownAs policy.",
+        "SignalSource": "Unavailable",
+        "Expected": true,
+        "Actual": null
+      }
+    ],
+    "OverallStatus": "NonCompliant",
+    "Reasons": [
+      "[OSVersion] OS version 13.5 is below minimum 14.0.",
+      "[Antivirus] Antivirus health not reported by Graph (signal unavailable in this tenant); applied treatUnknownAs policy."
+    ],
+    "EvaluatedAt": "2026-07-09T11:26:42-04:00"
+  },
+  {
+    "DeviceId": "6e3f9a2d-8b4c-4d7e-a1f0-3c4d5e6f7a8b",
+    "DeviceName": "MOCK-WIN-NOAV",
+    "OwnerUpn": "devon.okafor@contoso.onmicrosoft.com",
+    "Platform": "Windows",
+    "OsVersion": "10.0.22631.3958",
+    "Checks": [
+      {
+        "Check": "DiskEncryption",
+        "Status": "Compliant",
+        "Reason": "Disk encryption is enabled.",
+        "SignalSource": "Graph",
+        "Expected": true,
+        "Actual": true
+      },
+      {
+        "Check": "OSVersion",
+        "Status": "Compliant",
+        "Reason": "OS version 10.0.22631.3958 meets minimum 10.0.19045.",
+        "SignalSource": "Graph",
+        "Expected": "10.0.19045",
+        "Actual": "10.0.22631.3958"
+      },
+      {
+        "Check": "Antivirus",
+        "Status": "Unknown",
+        "Reason": "Antivirus health not reported by Graph (signal unavailable in this tenant); applied treatUnknownAs policy.",
+        "SignalSource": "Unavailable",
+        "Expected": true,
+        "Actual": null
+      }
+    ],
+    "OverallStatus": "Unknown",
+    "Reasons": [
+      "[Antivirus] Antivirus health not reported by Graph (signal unavailable in this tenant); applied treatUnknownAs policy."
+    ],
+    "EvaluatedAt": "2026-07-09T11:26:42-04:00"
+  }
+]

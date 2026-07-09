@@ -1,0 +1,18 @@
+<!DOCTYPE html>
+<html>
+  <body style="font-family: Segoe UI, Arial, sans-serif; color: #222; line-height: 1.5;">
+    <p>Hello,</p>
+    <p>Our security compliance automation checked your device and found one or more issues that need your attention.</p>
+    <table style="border-collapse: collapse;">
+      <tr><td style="padding: 2px 12px 2px 0;"><strong>Device</strong></td><td>{{DeviceName}}</td></tr>
+      <tr><td style="padding: 2px 12px 2px 0;"><strong>Platform</strong></td><td>{{Platform}}</td></tr>
+      <tr><td style="padding: 2px 12px 2px 0;"><strong>Checked</strong></td><td>{{EvaluatedAt}}</td></tr>
+    </table>
+    <p><strong>Issues found:</strong></p>
+    {{FailingChecks}}
+    <p><strong>What you need to do:</strong></p>
+    {{RemediationInstruction}}
+    <p>If you believe this is a mistake or need help, please contact your IT support team.</p>
+    <p style="color: #888; font-size: 12px;">This is an automated message from IntuneOps device compliance.</p>
+  </body>
+</html>

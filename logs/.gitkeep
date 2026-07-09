@@ -1,0 +1,1 @@
+# Purpose: keep the logs/ directory in version control while ignoring its contents (see .gitignore).

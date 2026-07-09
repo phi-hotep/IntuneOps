@@ -1,0 +1,12 @@
+{
+  "IsEncrypted": false,
+  "Values": {
+    "FUNCTIONS_WORKER_RUNTIME": "powershell",
+    "FUNCTIONS_WORKER_RUNTIME_VERSION": "7.4",
+    "AzureWebJobsStorage": ""
+  },
+  "Host": {
+    "CORS": "http://localhost:8788,http://127.0.0.1:8788",
+    "CORSCredentials": false
+  }
+}
